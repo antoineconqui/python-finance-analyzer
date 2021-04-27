@@ -133,7 +133,7 @@ def save_results():
 #     print(company, profit)
 # print(sum/6)
 
-main('rsi', 3)
+main('rsi', 2)
 
 # company = Company('OTIS')
 # save_macd(company)

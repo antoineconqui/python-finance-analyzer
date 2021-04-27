@@ -1,0 +1,1 @@
+"C:\Users\antoi\AppData\Local\Programs\Python\Python39\python.exe" "C:\Users\antoi\Documents\GitHub\python-finance-analyzer\performance_analyzer.py"
