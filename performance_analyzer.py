@@ -60,7 +60,8 @@ class Company:
         return dumps(self, default=lambda o: o.__dict__)
 
 
-def main(strategy, days):
+def get_orders(strategy, companies, days):
+    orders = []
     ts = time()
 
     plot = {
@@ -77,27 +78,24 @@ def main(strategy, days):
     if not isdir('./' + datetime.strftime(datetime.today(), '%Y-%m-%d') + ' ('+strategy+')'):
         makedirs('./' + datetime.strftime(datetime.today(), '%Y-%m-%d') + ' ('+strategy+')')
 
-    for company_symbol in revolut_companies:
-    # for company_symbol in ['OTIS']:
+    for company_symbol in companies:
         company = Company(company_symbol)
-        # company.update()
-
         for order in company.technical_indicators[strategy]:
             if datetime.strptime(order['date'], '%Y-%m-%d') > datetime.today() - timedelta(days=days):
-                print(company_symbol,order)
                 save[strategy](company)
+                order['symbol'] = company_symbol
+                order['image'] = './'+datetime.strftime(datetime.today(), '%Y-%m-%d')+' ('+strategy+')/'+company.symbol+'.png'
+                orders.append(order)
 
-    print(int(time() - ts),' secondes')
+    return orders
 
 
-def compute_profit(company):
+def compute_profit(company, strategy):
     profit = {"macd" : 0, "rsi" : 0, "boll" : 0}
     capital = 1
     n_actions = 0
 
-    macd = company.technical_indicators['macd']
-    rsi = company.technical_indicators['rsi']
-    boll = company.technical_indicators['boll']
+    macd = company.technical_indicators[strategy]
 
     for signal in [macd, rsi, boll]:
         print
@@ -123,17 +121,7 @@ def save_results():
     savetxt("boll.csv", results[2], delimiter=",", fmt='%f')
 
 
-# save_results()
-# send_mail(get_orders())
-
-# sum = 0
-# for company in nasdaq_companies:
-#     profit = compute_profit(company,0)
-#     sum += profit
-#     print(company, profit)
-# print(sum/6)
-
-main('rsi', 2)
+send_mail(get_orders('rsi', paris_companies + revolut_companies, 2))
 
 # company = Company('OTIS')
 # save_macd(company)
