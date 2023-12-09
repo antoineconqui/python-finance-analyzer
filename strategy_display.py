@@ -18,19 +18,19 @@ def arrays_from_datas(datas):
     return index, data
 
 
-def index_from_datas(datas):
-    return [e['date'] for e in datas]
+def plot_price_and_signals(company, datas, strategy, axs):
+    signals = serie_from_datas([e for e in datas if e['signal'] == 'Buy'])
+    axs[0].scatter(signals.index, signals, color='green', label='Buy Signal', marker='^', alpha=1)
 
+    signals = serie_from_datas([e for e in datas if e['signal'] == 'Sell'])
+    axs[0].scatter(signals.index, signals, color='red', label='Sell Signal', marker='v', alpha=1)
 
-def plot_price_and_signals(fig, company, data, strategy, axs):
-    fig.suptitle(f'Top: {company.symbol} Stock Price. Bottom: {strategy}')
-
-    serie = serie_from_datas([e for e in data if e['signal'] == 'Buy'])
-    axs[0].scatter(serie.index, serie, color='green', label='Buy Signal', marker='^', alpha=1)
-
-    serie = serie_from_datas([e for e in data if e['signal'] == 'Sell'])
-    axs[0].scatter(serie.index, serie, color='red', label='Sell Signal', marker='v', alpha=1)
-
+    for i in range(len(signals)):
+        index = [data['date'] for data in datas].index(signals.index[i].strftime('%Y-%m-%d'))
+        buy_price = serie_from_datas([e for e in datas]).iloc[index-1]
+        sell_price = serie_from_datas([e for e in datas]).iloc[index]
+        axs[0].annotate("{:.1f}".format((sell_price-buy_price)/buy_price*100)+'%', (signals.index[i], signals.iloc[i]))
+     
     index, datas = arrays_from_datas(company.prices)
     axs[0].plot(index, datas, label='Close Price', color='blue', alpha=0.35)
 
@@ -41,112 +41,51 @@ def plot_price_and_signals(fig, company, data, strategy, axs):
     axs[0].grid()
 
 
-def plot_macd(company):
-    fig, axs = plt.subplots(2, sharex=True, figsize=(13, 9))
-    plot_price_and_signals(fig, company, company.technical_indicators['macd'], 'MACD', axs)
-
-    index, macd = arrays_from_datas(company.signals['macd'])
-    axs[1].plot(index, macd, label=company.symbol + ' MACD', color='green')
-
-    index, macd = arrays_from_datas(company.signals['macd_signal'])
-    axs[1].plot(index, macd, label='Signal Line', color='orange')
-
-    positive = serie_from_datas([e for e in company.signals['macd_diff'] if e['price'] >= 0])
-    negative = serie_from_datas([e for e in company.signals['macd_diff'] if e['price'] < 0])
-
-    axs[1].bar(positive.index, positive, color='green')
-    axs[1].bar(negative.index, negative, color='red')
-    axs[1].legend(loc='upper left')
-    axs[1].grid()
-    plt.show()
-
-
-def plot_rsi(company):
-    low_rsi = 40
-    high_rsi = 70
-
-    fig, axs = plt.subplots(2, sharex=True, figsize=(13, 9))
-    plot_price_and_signals(fig, company, company.technical_indicators['rsi'], 'RSI', axs)
-
-    index, rsi = arrays_from_datas(company.signals['rsi'])
-    axs[1].plot(index, rsi, label='RSI', color='blue', alpha=0.35)
-    axs[1].fill_between(index, y1=low_rsi, y2=high_rsi, color='#adccff', alpha=0.3)
-    axs[1].legend(loc='upper left')
-    axs[1].grid()
-
-    plt.show()
-
-
-def plot_boll(company):
-    image = f'images/{company.symbol}_bb.png'
-    bollinger_bands = company.technical_indicators
-
+def plot_indicator(company, indicator, save=False):
     fig, axs = plt.subplots(2, sharex=True, figsize=(13, 9))
 
-    plot_price_and_signals(fig, company, bollinger_bands, 'Bollinger_Bands', axs)
+    plot_price_and_signals(company, company.technical_indicators[indicator], indicator, axs)
 
-    axs[1].plot(bollinger_bands['Bollinger_Bands_Middle'], label='Middle', color='blue', alpha=0.35)
-    axs[1].plot(bollinger_bands['Bollinger_Bands_Upper'], label='Upper', color='green', alpha=0.35)
-    axs[1].plot(bollinger_bands['Bollinger_Bands_Lower'], label='Lower', color='red', alpha=0.35)
-    axs[1].fill_between(bollinger_bands.index, bollinger_bands['Bollinger_Bands_Lower'],
-                        bollinger_bands['Bollinger_Bands_Upper'], alpha=0.1)
-    axs[1].legend(loc='upper left')
+    if indicator == 'macd':
+        index, macd = arrays_from_datas(company.signals['macd'])
+        axs[1].plot(index, macd, label=company.symbol + ' MACD', color='green')
+
+        index, macd_signal = arrays_from_datas(company.signals['macd_signal'])
+        axs[1].plot(index, macd_signal, label='Signal Line', color='orange')
+
+        positive = serie_from_datas([e for e in company.signals['macd_diff'] if e['price'] >= 0])
+        negative = serie_from_datas([e for e in company.signals['macd_diff'] if e['price'] < 0])
+
+        axs[1].bar(positive.index, positive, color='green')
+        axs[1].bar(negative.index, negative, color='red')
+        axs[1].legend(loc='upper left')
+
+    elif indicator == 'rsi':
+        low_rsi = 40
+        high_rsi = 70
+
+        index, rsi = arrays_from_datas(company.signals['rsi'])
+        axs[1].plot(index, rsi, label='RSI', color='blue', alpha=0.35)
+        axs[1].fill_between(index, y1=low_rsi, y2=high_rsi, color='#adccff', alpha=0.3)
+        axs[1].legend(loc='upper left')
+
+    elif indicator == 'boll':
+        index, boll_mavg = arrays_from_datas(company.signals['boll_mavg'])
+        index, boll_hband = arrays_from_datas(company.signals['boll_hband'])
+        index, boll_lband = arrays_from_datas(company.signals['boll_lband'])
+
+        axs[1].plot(index, boll_mavg, label='Middle', color='blue', alpha=0.35)
+        axs[1].plot(index, boll_hband, label='Upper', color='green', alpha=0.35)
+        axs[1].plot(index, boll_lband, label='Lower', color='red', alpha=0.35)
+        axs[1].fill_between(index, boll_lband, boll_hband, alpha=0.1)
+        axs[1].legend(loc='upper left')
+
     axs[1].grid()
 
-    plt.show()
-
-
-def save_macd(company):
-    fig, axs = plt.subplots(2, sharex=True, figsize=(13, 9))
-    plot_price_and_signals(fig, company, company.technical_indicators['macd'], 'MACD', axs)
-
-    index, macd = arrays_from_datas(company.signals['macd'])
-    axs[1].plot(index, macd, label=company.symbol + ' MACD', color='green')
-
-    index, macd = arrays_from_datas(company.signals['macd_signal'])
-    axs[1].plot(index, macd, label='Signal Line', color='orange')
-
-    positive = serie_from_datas([e for e in company.signals['macd_diff'] if e['price'] >= 0])
-    negative = serie_from_datas([e for e in company.signals['macd_diff'] if e['price'] < 0])
-
-    axs[1].bar(positive.index, positive, color='green')
-    axs[1].bar(negative.index, negative, color='red')
-    axs[1].legend(loc='upper left')
-    axs[1].grid()
-
-    plt.savefig('./'+datetime.strftime(datetime.today(), '%Y-%m-%d')+' (macd)/'+company.symbol+'.png')
-
-
-def save_rsi(company):
-    low_rsi = 40
-    high_rsi = 70
-
-    fig, axs = plt.subplots(2, sharex=True, figsize=(13, 9))
-    plot_price_and_signals(fig, company, company.technical_indicators['rsi'], 'RSI', axs)
-
-    index, rsi = arrays_from_datas(company.signals['rsi'])
-    axs[1].plot(index, rsi, label='RSI', color='blue', alpha=0.35)
-    axs[1].fill_between(index, y1=low_rsi, y2=high_rsi, color='#adccff', alpha=0.3)
-    axs[1].legend(loc='upper left')
-    axs[1].grid()
-
-    plt.savefig('./'+datetime.strftime(datetime.today(), '%Y-%m-%d')+' (rsi)/'+company.symbol+'.png')
-
-
-def save_boll(company):
-    image = f'images/{company.symbol}_bb.png'
-    bollinger_bands = company.technical_indicators
-
-    fig, axs = plt.subplots(2, sharex=True, figsize=(13, 9))
-
-    plot_price_and_signals(fig, company, bollinger_bands, 'Bollinger_Bands', axs)
-
-    axs[1].plot(bollinger_bands['Bollinger_Bands_Middle'], label='Middle', color='blue', alpha=0.35)
-    axs[1].plot(bollinger_bands['Bollinger_Bands_Upper'], label='Upper', color='green', alpha=0.35)
-    axs[1].plot(bollinger_bands['Bollinger_Bands_Lower'], label='Lower', color='red', alpha=0.35)
-    axs[1].fill_between(bollinger_bands.index, bollinger_bands['Bollinger_Bands_Lower'],
-                        bollinger_bands['Bollinger_Bands_Upper'], alpha=0.1)
-    axs[1].legend(loc='upper left')
-    axs[1].grid()
-
-    plt.savefig('./'+datetime.strftime(datetime.today(), '%Y-%m-%d')+' (boll)/'+company.symbol+'.png')
+    if save:
+        path = './datas/' + company.symbol
+        if not os.path.isdir(path):
+            os.makedirs(path)
+        plt.savefig(path + '/' + indicator + '.png')
+    else:
+        plt.show()

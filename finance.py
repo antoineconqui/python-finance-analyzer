@@ -84,7 +84,7 @@ def serie_from_datas(datas):
 
 
 def datas_from_serie(serie):
-    return [{"date": datetime.strftime(serie.index[i], '%Y-%m-%d'), "price": serie[i]} for i in range(len(serie))]
+    return [{"date": datetime.strftime(serie.index[i], '%Y-%m-%d'), "price": serie.iloc[i]} for i in range(len(serie))]
 
 
 def generate_buy_sell_signals(condition_buy, condition_sell, prices):
@@ -102,6 +102,28 @@ def generate_buy_sell_signals(condition_buy, condition_sell, prices):
             signals.append({"signal" : last_signal, "date" : prices[i]['date'], "price" : float(prices[i]['price'])})
     return signals
 
+
+# Function to generate buy/sell signals
+def generate_signals(data):
+    # Calculate indicators (RSI, MACD, Bollinger Bands)
+    data['RSI'] = RSIIndicator(data['Close'], window=14).rsi()
+    data['MACD'] = MACD(data['Close']).macd()
+    data['MACD_Signal'] = MACD(data['Close']).macd_signal()
+    data['BollingerB_High'] = BollingerBands(data['Close']).bollinger_hband()
+    data['BollingerB_Low'] = BollingerBands(data['Close']).bollinger_lband()
+
+    signals = []
+    for i in range(len(data)):
+        # Conditions for buy/sell signals
+        if data['RSI'][i] < 30 and data['MACD'][i] > data['MACD_Signal'][i] and data['Close'][i] < data['BollingerB_Low'][i]:
+            signals.append('Buy')
+        elif data['RSI'][i] > 70 and data['MACD'][i] < data['MACD_Signal'][i] and data['Close'][i] > data['BollingerB_High'][i]:
+            signals.append('Sell')
+        else:
+            signals.append('Hold')
+    
+    data['Signals'] = signals
+    return data
 
 def get_macd(company):
     macd = MACD(serie_from_datas(company.prices))
